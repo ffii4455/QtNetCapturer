@@ -1,4 +1,4 @@
-#include "capturer.h"
+﻿#include "capturer.h"
 #include "packetstruct.h"
 
 #pragma comment(lib,"C:/WpdPack/Lib/x64/wpcap.lib")
@@ -88,8 +88,11 @@ bool Capturer::openDevice(int index)
                               errbuf            // error buffer
                               ) ) == NULL)
     {
+        printLog("设备打开错误！");
         return false;
     }
+
+    printLog("设备已打开！");
 
     if (adhandle != NULL)
     {
@@ -148,7 +151,7 @@ void Capturer::packet_handler(u_char *param, const pcap_pkthdr *header, const u_
             int ip_len = ntohs(ih->tlen); /* get ip length, it contains header and body */
 
             int find_http = false;
-            char* ip_pkt_data = (char*)ih;
+            char* ip_pkt_data = (char*)ih;           
             int n = 0;
             char buffer[BUFFER_MAX_LENGTH];
             int bufsize = 0;
@@ -182,6 +185,11 @@ void Capturer::packet_handler(u_char *param, const pcap_pkthdr *header, const u_
 
     }
 
+}
+
+void Capturer::printLog(QString str)
+{
+    emit log(str);
 }
 
 void Capturer::emitDataSignal()

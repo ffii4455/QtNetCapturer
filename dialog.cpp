@@ -1,4 +1,4 @@
-#include "dialog.h"
+﻿#include "dialog.h"
 #include "ui_dialog.h"
 #include <QMessageBox>
 
@@ -10,6 +10,7 @@ Dialog::Dialog(QWidget *parent) :
     setWindowFlags(Qt::Window);
     cp = new Capturer;
     connect(cp, SIGNAL(readyRead(QString)), this, SLOT(updatePacketInf(QString)));
+    connect(cp, SIGNAL(log(QString)), this, SLOT(updatePacketInf(QString)));
     ui->deviceList->addItems(cp->getDevicesList());
     ui->version->setText("Build: " + QString(__TIMESTAMP__));
 }

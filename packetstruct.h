@@ -1,4 +1,4 @@
-#ifndef PACKETSTRUCT_H
+﻿#ifndef PACKETSTRUCT_H
 #define PACKETSTRUCT_H
 
 #include <QString>
@@ -40,8 +40,7 @@ typedef struct ip_header{
     u_char  proto;          // Protocol
     u_short crc;            // Header checksum
     ip_address  saddr;      // Source address
-    ip_address  daddr;      // Destination address
-    u_int   op_pad;         // Option + Padding
+    ip_address  daddr;      // Destination address    
 }ip_header;
 
 /* UDP header*/
@@ -52,7 +51,18 @@ typedef struct udp_header{
     u_short crc;            // Checksum
 }udp_header;
 
-
+//TCP头部，总长度20字节
+typedef struct
+{
+    short m_sSourPort;      // 源端口号16bit
+    short m_sDestPort;      // 目的端口号16bit
+    unsigned int m_uiSequNum;     // 序列号32bit
+    unsigned int m_uiAcknowledgeNum;  // 确认号32bit
+    short m_sHeaderLenAndFlag;     // 前4位：TCP头长度；中6位：保留；后6位：标志位
+    short m_sWindowSize;       // 窗口大小16bit
+    short m_sCheckSum;        // 检验和16bit
+    short m_surgentPointer;    // 紧急数据偏移量16bit
+}tcp_header;
 
 //帧头部结构体，共14字节
 struct EthernetHeader
