@@ -23,6 +23,7 @@ private slots:
     void updatePacketInf(QString str);
     void on_open_clicked();
     void on_about_clicked();
+    void on_arp_clicked();
 };
 
 #endif // DIALOG_H

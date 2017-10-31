@@ -19,6 +19,7 @@ public:
     ~Capturer();
     QStringList getDevicesList();
     bool openDevice(int index);
+    bool sendArpReq(QString ip);
 protected:
     void run();
 private:
@@ -28,6 +29,9 @@ private:
     QTimer timer;
 
     void printLog(QString str);
+
+    void ifget(pcap_if_t *d, char *ip_addr, char *ip_netmask);
+    int GetSelfMac(pcap_t *adhandle, const char *ip_addr, unsigned char *ip_mac);
 private slots:
     void emitDataSignal();
 signals:

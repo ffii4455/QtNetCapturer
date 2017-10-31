@@ -36,3 +36,8 @@ void Dialog::on_about_clicked()
     QMessageBox::information(this, "信息", "Author: Lee\n"
                                          "Email: limeng89@foxmail.com");
 }
+
+void Dialog::on_arp_clicked()
+{
+
+}

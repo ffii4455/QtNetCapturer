@@ -7,6 +7,20 @@
 
 QString Capturer::packetBuffer;
 
+/* 将数字类型的IP地址转换成字符串类型的 */
+#define IPTOSBUFFERS    12
+char *iptos(u_long in)
+{
+    static char output[IPTOSBUFFERS][3*4+3+1];
+    static short which;
+    u_char *p;
+
+    p = (u_char *)&in;
+    which = (which + 1 == IPTOSBUFFERS ? 0 : which + 1);
+    sprintf_s(output[which], "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+    return output[which];
+}
+
 Capturer::Capturer() : adhandle(NULL)
 {
     connect(&timer, SIGNAL(timeout()), this, SLOT(emitDataSignal()));
@@ -107,6 +121,49 @@ bool Capturer::openDevice(int index)
 
 }
 
+bool Capturer::sendArpReq(QString ip)
+{
+    unsigned char sendbuf[42]; //arp包结构大小
+    EthernetHeader eh;
+    Arpheader ah;
+
+    quint8 mac[6] = {0x00, 0x16, 0x3E, 0x08, 0xA6, 0x4D};
+    //赋值MAC地址
+    memset(eh.DestMAC, 0xff, 6);       //目的地址为全为广播地址
+    memcpy(eh.SourMAC, mac, 6);
+    memcpy(ah.SourceMacAdd, mac, 6);
+    memset(ah.DestMacAdd, 0x00, 6);
+    eh.EthType = htons(ETH_ARP);
+    ah.HardwareType = htons(ARP_HARDWARE);
+    ah.ProtocolType = htons(ETH_IP);
+    ah.HardwareAddLen = 6;
+    ah.ProtocolAddLen = 4;
+    ah.SourceIpAdd = inet_addr(ip.toLocal8Bit().data()); //请求方的IP地址为自身的IP地址
+    ah.OperationField = htons(ARP_REQUEST);
+    //向局域网内广播发送arp包
+    unsigned long myip = inet_addr(ip.toLocal8Bit().data());
+    unsigned long mynetmask = inet_addr(netmask);
+    unsigned long hisip = htonl((myip & mynetmask));
+    //向255个主机发送
+    for (int i = 0; i < HOSTNUM; i++) {
+        ah.DestIpAdd = htonl(hisip + i);
+        //构造一个ARP请求
+        memset(sendbuf, 0, sizeof(sendbuf));
+        memcpy(sendbuf, &eh, sizeof(eh));
+        memcpy(sendbuf + sizeof(eh), &ah, sizeof(ah));
+        //如果发送成功
+        if (pcap_sendpacket(adhandle, sendbuf, 42) == 0) {
+            //printf("\nPacketSend succeed\n");
+        } else {
+            printf("PacketSendPacket in getmine Error: %d\n", GetLastError());
+        }
+        Sleep(50);
+    }
+    Sleep(1000);
+    flag = TRUE;
+    return true;
+}
+
 void Capturer::run()
 {
     if (adhandle != NULL)
@@ -151,7 +208,7 @@ void Capturer::packet_handler(u_char *param, const pcap_pkthdr *header, const u_
             int ip_len = ntohs(ih->tlen); /* get ip length, it contains header and body */
 
             int find_http = false;
-            char* ip_pkt_data = (char*)ih;           
+            char* ip_pkt_data = (char*)ih;
             int n = 0;
             char buffer[BUFFER_MAX_LENGTH];
             int bufsize = 0;
@@ -190,6 +247,86 @@ void Capturer::packet_handler(u_char *param, const pcap_pkthdr *header, const u_
 void Capturer::printLog(QString str)
 {
     emit log(str);
+}
+
+void Capturer::ifget(pcap_if_t *d, char *ip_addr, char *ip_netmask)
+{
+    pcap_addr_t *a;
+    //遍历所有的地址,a代表一个pcap_addr
+    for (a = d->addresses; a; a = a->next) {
+        switch (a->addr->sa_family) {
+        case AF_INET:  //sa_family ：是2字节的地址家族，一般都是“AF_xxx”的形式。通常用的都是AF_INET。代表IPV4
+            if (a->addr) {
+                char *ipstr;
+                //将地址转化为字符串
+                ipstr = iptos(((struct sockaddr_in *) a->addr)->sin_addr.s_addr); //*ip_addr
+                printf("ipstr:%s\n",ipstr);
+                memcpy(ip_addr, ipstr, 16);
+            }
+            if (a->netmask) {
+                char *netmaskstr;
+                netmaskstr = iptos(((struct sockaddr_in *) a->netmask)->sin_addr.s_addr);
+                printf("netmask:%s\n",netmaskstr);
+                memcpy(ip_netmask, netmaskstr, 16);
+            }
+        case AF_INET6:
+            break;
+        }
+    }
+}
+
+int Capturer::GetSelfMac(pcap_t *adhandle, const char *ip_addr, unsigned char *ip_mac)
+{
+    unsigned char sendbuf[42]; //arp包结构大小
+    int i = -1;
+    int res;
+    EthernetHeader eh; //以太网帧头
+    Arpheader ah;  //ARP帧头
+    struct pcap_pkthdr * pkt_header;
+    const u_char * pkt_data;
+    //将已开辟内存空间 eh.dest_mac_add 的首 6个字节的值设为值 0xff。
+    memset(eh.DestMAC, 0xff, 6); //目的地址为全为广播地址
+    memset(eh.SourMAC, 0x0f, 6);
+    memset(ah.DestMacAdd, 0x0f, 6);
+    memset(ah.SourceMacAdd, 0x00, 6);
+    //htons将一个无符号短整型的主机数值转换为网络字节顺序
+    eh.EthType = htons(ETH_ARP);
+    ah.HardwareType= htons(ARP_HARDWARE);
+    ah.ProtocolType = htons(ETH_IP);
+    ah.HardwareAddLen = 6;
+    ah.ProtocolAddLen = 4;
+    ah.SourceIpAdd = inet_addr("100.100.100.100"); //随便设的请求方ip
+    ah.OperationField = htons(ARP_REQUEST);
+    ah.DestIpAdd = inet_addr(ip_addr);
+    memset(sendbuf, 0, sizeof(sendbuf));
+    memcpy(sendbuf, &eh, sizeof(eh));
+    memcpy(sendbuf + sizeof(eh), &ah, sizeof(ah));
+    printf("%s",sendbuf);
+    if (pcap_sendpacket(adhandle, sendbuf, 42) == 0) {
+        printf("\nPacketSend succeed\n");
+    } else {
+        printf("PacketSendPacket in getmine Error: %d\n", GetLastError());
+        return 0;
+    }
+    //从interface或离线记录文件获取一个报文
+    //pcap_next_ex(pcap_t* p,struct pcap_pkthdr** pkt_header,const u_char** pkt_data)
+    while ((res = pcap_next_ex(adhandle, &pkt_header, &pkt_data)) >= 0) {
+        if (*(unsigned short *) (pkt_data + 12) == htons(ETH_ARP)
+                && *(unsigned short*) (pkt_data + 20) == htons(ARP_REPLY)
+                && *(unsigned long*) (pkt_data + 38)
+                == inet_addr("100.100.100.100")) {
+            for (i = 0; i < 6; i++) {
+                ip_mac[i] = *(unsigned char *) (pkt_data + 22 + i);
+            }
+            printf("获取自己主机的MAC地址成功!\n");
+            break;
+        }
+    }
+    if (i == 6) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
 void Capturer::emitDataSignal()
