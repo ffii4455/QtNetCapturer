@@ -24,6 +24,7 @@ private slots:
     void on_open_clicked();
     void on_about_clicked();
     void on_arp_clicked();
+    void on_clear_clicked();
 };
 
 #endif // DIALOG_H

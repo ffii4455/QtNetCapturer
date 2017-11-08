@@ -21,6 +21,33 @@ char *iptos(u_long in)
     return output[which];
 }
 
+u_long stoip(char *s)
+{
+    u_long retVal = 0;
+    uchar x = 1;
+    uchar y = 0;
+    uchar ipElem = 0;
+    int i = 0;
+
+    for (i = (int)strlen(s) - 1; i >= 0; i--)
+    {
+        if (*(s + i) == '.')
+        {
+            retVal += (ipElem <<(8 * (3 - y)));
+            y++;
+            ipElem = 0;
+            x = 1;
+            continue;
+        }
+        ipElem += ((*(s + i) - '0') * x);
+        x *= 10;
+
+    }
+    retVal += (ipElem <<(8 * (3 - y)));
+    return retVal;
+}
+
+
 Capturer::Capturer() : adhandle(NULL)
 {
     connect(&timer, SIGNAL(timeout()), this, SLOT(emitDataSignal()));
@@ -45,6 +72,7 @@ QStringList Capturer::getDevicesList()
     QStringList devList;
     QString ip;
     pcap_addr_t *a;
+    T_IfInfo tIfInfo;
 
     if(pcap_findalldevs(&alldevs, errbuf) == -1)
     {
@@ -58,6 +86,9 @@ QStringList Capturer::getDevicesList()
             if (a->addr->sa_family == AF_INET)
             {
                 ip = inet_ntoa(((struct sockaddr_in *)a->addr)->sin_addr);
+                tIfInfo.ip = ip;
+                tIfInfo.name = d->name;
+                ifInfo.append(tIfInfo);
             }
         }
         devList << QString(d->description) + "(" + ip + ")";
@@ -93,7 +124,7 @@ bool Capturer::openDevice(int index)
 
 
     /* Open the device */
-    if ( (adhandle= pcap_open(d->name,          // name of the device
+    if ( (adhandle= pcap_open(ifInfo.at(index).name.toLocal8Bit().data(),          // name of the device
                               65536,            // portion of the packet to capture
                               // 65536 guarantees that the whole packet will be captured on all the link layers
                               PCAP_OPENFLAG_PROMISCUOUS,    // promiscuous mode
@@ -121,11 +152,15 @@ bool Capturer::openDevice(int index)
 
 }
 
-bool Capturer::sendArpReq(QString ip)
+bool Capturer::sendArpReq(int ifIdx, QString ip)
 {
     unsigned char sendbuf[42]; //arp包结构大小
     EthernetHeader eh;
     Arpheader ah;
+    QByteArray myIp = ifInfo.at(ifIdx).ip.toLatin1();
+    QByteArray desIp = ip.toLatin1();
+
+    qDebug() << myIp.data() << desIp.data();
 
     quint8 mac[6] = {0x00, 0x16, 0x3E, 0x08, 0xA6, 0x4D};
     //赋值MAC地址
@@ -138,29 +173,21 @@ bool Capturer::sendArpReq(QString ip)
     ah.ProtocolType = htons(ETH_IP);
     ah.HardwareAddLen = 6;
     ah.ProtocolAddLen = 4;
-    ah.SourceIpAdd = inet_addr(ip.toLocal8Bit().data()); //请求方的IP地址为自身的IP地址
+    ah.SourceIpAdd = stoip(myIp.data());
+    ah.DestIpAdd = stoip(desIp.data());
     ah.OperationField = htons(ARP_REQUEST);
-    //向局域网内广播发送arp包
-    unsigned long myip = inet_addr(ip.toLocal8Bit().data());
-    unsigned long mynetmask = inet_addr(netmask);
-    unsigned long hisip = htonl((myip & mynetmask));
-    //向255个主机发送
-    for (int i = 0; i < HOSTNUM; i++) {
-        ah.DestIpAdd = htonl(hisip + i);
-        //构造一个ARP请求
-        memset(sendbuf, 0, sizeof(sendbuf));
-        memcpy(sendbuf, &eh, sizeof(eh));
-        memcpy(sendbuf + sizeof(eh), &ah, sizeof(ah));
-        //如果发送成功
-        if (pcap_sendpacket(adhandle, sendbuf, 42) == 0) {
-            //printf("\nPacketSend succeed\n");
-        } else {
-            printf("PacketSendPacket in getmine Error: %d\n", GetLastError());
-        }
-        Sleep(50);
+    //构造一个ARP请求
+    memset(sendbuf, 0, sizeof(sendbuf));
+    memcpy(sendbuf, &eh, sizeof(eh));
+    memcpy(sendbuf + sizeof(eh), &ah, sizeof(ah));
+    //如果发送成功
+    if (pcap_sendpacket(adhandle, sendbuf, 42) == 0)
+    {
+        printLog("ARP SEND " + ip);
+    } else {
+        printf("PacketSendPacket in getmine Error: %d\n", GetLastError());
     }
-    Sleep(1000);
-    flag = TRUE;
+
     return true;
 }
 

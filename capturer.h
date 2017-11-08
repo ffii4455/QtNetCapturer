@@ -19,14 +19,24 @@ public:
     ~Capturer();
     QStringList getDevicesList();
     bool openDevice(int index);
-    bool sendArpReq(QString ip);
+    bool sendArpReq(int ifIdx, QString ip);
 protected:
     void run();
 private:
+
+    typedef struct
+    {
+        QString name;
+        QString ip;
+    }T_IfInfo;
+
+
     pcap_t *adhandle;
     static QString packetBuffer;
     static void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);    
     QTimer timer;
+
+    QVector<T_IfInfo> ifInfo;
 
     void printLog(QString str);
 

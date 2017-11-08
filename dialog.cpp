@@ -39,5 +39,10 @@ void Dialog::on_about_clicked()
 
 void Dialog::on_arp_clicked()
 {
+    cp->sendArpReq(ui->deviceList->currentIndex(), "10.90.98.55");
+}
 
+void Dialog::on_clear_clicked()
+{
+    ui->data->clear();
 }

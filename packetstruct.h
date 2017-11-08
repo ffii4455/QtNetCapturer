@@ -8,7 +8,7 @@
 #define ETH_IP          0x0800  //协议类型字段表示要映射的协议地址类型值为x0800表示IP地址
 #define ARP_REQUEST     1   //ARP请求
 #define ARP_REPLY       2      //ARP应答
-#define HOSTNUM         255   //主机数量
+#define HOSTNUM         1   //主机数量
 #define ETHERTYPE_IP 0x0800 /* ip protocol */
 #define TCP_PROTOCAL 0x0600 /* tcp protocol */
 #define BUFFER_MAX_LENGTH 65536 /* buffer max length */
