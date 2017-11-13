@@ -158,9 +158,7 @@ bool Capturer::sendArpReq(int ifIdx, QString ip)
     EthernetHeader eh;
     Arpheader ah;
     QByteArray myIp = ifInfo.at(ifIdx).ip.toLatin1();
-    QByteArray desIp = ip.toLatin1();
-
-    qDebug() << myIp.data() << desIp.data();
+    QByteArray desIp = ip.toLatin1();    
 
     quint8 mac[6] = {0x00, 0x16, 0x3E, 0x08, 0xA6, 0x4D};
     //赋值MAC地址
@@ -183,7 +181,7 @@ bool Capturer::sendArpReq(int ifIdx, QString ip)
     //如果发送成功
     if (pcap_sendpacket(adhandle, sendbuf, 42) == 0)
     {
-        printLog("ARP SEND " + ip);
+        printLog("[Arp Req]" + ip);
     } else {
         printf("PacketSendPacket in getmine Error: %d\n", GetLastError());
     }
@@ -212,7 +210,7 @@ void Capturer::packet_handler(u_char *param, const pcap_pkthdr *header, const u_
         ArpPacket *recv = (ArpPacket *) pkt_data;
         if (*(unsigned short *) (pkt_data + 20) == htons(ARP_REPLY))
         {
-            sprintf(buffer, "[ARP] IP:%d.%d.%d.%d MAC: %02x-%02x-%02x-%02x-%02x-%02x\n",
+            sprintf(buffer, "[Arp Rep] IP:%d.%d.%d.%d MAC: %02x-%02x-%02x-%02x-%02x-%02x\n",
                     recv->ah.SourceIpAdd & 255,
                     recv->ah.SourceIpAdd >> 8 & 255,
                     recv->ah.SourceIpAdd >> 16 & 255,
